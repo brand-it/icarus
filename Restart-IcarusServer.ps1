@@ -1,16 +1,14 @@
 # Restart-IcarusServer.ps1
-# Restarts the Icarus dedicated server with timed warnings
+# Restarts the Icarus dedicated server
 #
-# IMPORTANT: AdminSay commands in Icarus require RCON access via in-game chat.
-# This script provides TWO methods:
+# IMPORTANT: Icarus does NOT have network RCON support!
+# AdminSay commands ONLY work from in-game chat when a player is logged in.
+# Without a game client running on the server, automated warnings are not possible.
 #
-# METHOD 1 (Recommended): Use IcarusServerManager or RCON tool
-# METHOD 2 (Fallback): Just restart the service (no warnings)
+# This script simply restarts the Windows service.
 
 param(
-    [switch]$NoWarnings,
-    [string]$AdminPassword = "",
-    [int]$RconPort = 0
+    [int]$WaitMinutes = 0
 )
 
 $ServiceName = "IcarusServer"
@@ -19,31 +17,19 @@ $ServiceName = "IcarusServer"
 $Red = "`e[31m"
 $Green = "`e[32m"
 $Yellow = "`e[33m"
-$Blue = "`e[36m"
+# ANSI colors for output
+$Red = "`e[31m"
+$Green = "`e[32m"
+$Yellow = "`e[33m"
 $Reset = "`e[0m"
 
 function Write-ColorOutput($Color, $Message) {
     Write-Host "$Color$Message$Reset"
 }
 
-function Send-AdminMessage {
-    param([string]$Message)
-
-    Write-ColorOutput $Blue "[$(Get-Date -Format 'HH:mm:ss')] Would send: $Message"
-
-    # TODO: Implement RCON connection here
-    # For now, this is a placeholder. You need to:
-    # 1. Install an RCON client (e.g., via npm: npm install -g rcon-cli)
-    # 2. Or use a PowerShell RCON module
-    # 3. Or use the IcarusServerManager if available
-
-    # Example using rcon-cli (if installed):
-    # rcon -H localhost -P $RconPort -p $AdminPassword "AdminSay $Message"
-}
-
-function Restart-IcarusServerWithWarnings {
-    Write-ColorOutput $Yellow "`n=== ICARUS SERVER RESTART SEQUENCE ===$Reset"
-    Write-ColorOutput $Yellow "Starting at: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
+function Restart-IcarusServer {
+    Write-ColorOutput $Yellow "`n=== ICARUS SERVER RESTART ==="
+    Write-ColorOutput $Yellow "Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
 
     # Check if service exists
     $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
@@ -62,22 +48,12 @@ function Restart-IcarusServerWithWarnings {
         }
     }
 
-    # Warning sequence
-    Write-ColorOutput $Yellow "[15 min warning]"
-    Send-AdminMessage "⚠️ SERVER RESTART IN 15 MINUTES — scheduled maintenance"
-    Start-Sleep -Seconds (10 * 60)  # 10 minutes
-
-    Write-ColorOutput $Yellow "[5 min warning]"
-    Send-AdminMessage "⚠️ SERVER RESTART IN 5 MINUTES — please return to safety"
-    Start-Sleep -Seconds (4 * 60)   # 4 minutes
-
-    Write-ColorOutput $Yellow "[1 min warning]"
-    Send-AdminMessage "⚠️ SERVER RESTART IN 60 SECONDS — logout to avoid issues"
-    Start-Sleep -Seconds 50         # 50 seconds
-
-    Write-ColorOutput $Yellow "[10 sec warning]"
-    Send-AdminMessage "🛑 SERVER RESTARTING NOW"
-    Start-Sleep -Seconds 10
+    # Optional wait period
+    if ($WaitMinutes -gt 0) {
+        Write-ColorOutput $Yellow "Waiting $WaitMinutes minutes before restart..."
+        Write-ColorOutput $Yellow "TIP: Manually send in-game warnings to players during this time"
+        Start-Sleep -Seconds ($WaitMinutes * 60)
+    }
 
     # Restart the server
     Write-ColorOutput $Red "`nRestarting service: $ServiceName"
@@ -100,32 +76,8 @@ function Restart-IcarusServerWithWarnings {
         exit 1
     }
 
-    Write-ColorOutput $Yellow "`nRestart sequence completed at: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-}
-
-function Restart-IcarusServerQuick {
-    Write-ColorOutput $Yellow "Quick restart (no warnings)..."
-
-    try {
-        Restart-Service -Name $ServiceName -Force
-        Start-Sleep -Seconds 5
-
-        $service = Get-Service -Name $ServiceName
-        if ($service.Status -eq 'Running') {
-            Write-ColorOutput $Green "✓ Server restarted successfully!"
-        } else {
-            Write-ColorOutput $Red "⚠ Service status: $($service.Status)"
-        }
-    }
-    catch {
-        Write-ColorOutput $Red "ERROR: $($_.Exception.Message)"
-        exit 1
-    }
+    Write-ColorOutput $Yellow "`nCompleted at: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 }
 
 # Main execution
-if ($NoWarnings) {
-    Restart-IcarusServerQuick
-} else {
-    Restart-IcarusServerWithWarnings
-}
+Restart-IcarusServer

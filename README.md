@@ -1,103 +1,160 @@
 # Icarus Server Restart Script
 
-PowerShell script to restart your Icarus dedicated server with timed player warnings.
+PowerShell script to restart your Icarus dedicated server.
+
+## ⚡ Before You Start: Enable PowerShell Scripts
+
+Windows 11 blocks running PowerShell scripts by default. Run this **ONCE** as Administrator:
+
+```powershell
+# Open PowerShell as Administrator (Win + X, then select "Terminal (Admin)")
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+When prompted, type **Y** and press Enter.
+
+**What this does:** Allows running locally-created scripts while still blocking downloaded scripts (unless you unblock them).
+
+### Unblock Downloaded Scripts
+
+If you downloaded these scripts from GitHub, Windows may block them. Unblock all scripts:
+
+```powershell
+# In the icarus folder, run:
+Get-ChildItem -Path . -Filter *.ps1 | Unblock-File
+```
+
+**Or unblock via GUI:**
+
+1. Right-click each `.ps1` file in File Explorer
+2. Click **Properties**
+3. Check the **Unblock** box at the bottom
+4. Click **OK**
+
+## 🚀 First Time Setup: Install as Windows Service
+
+If you're just running IcarusServer.exe by clicking it, you need to set it up as a Windows service first:
+
+```powershell
+# Run PowerShell as Administrator from C:\Users\newdark\icarus\
+.\Install-As-Service.ps1
+
+# Default path is C:\Users\newdark\icarus
+# If your IcarusServer.exe is elsewhere, specify with:
+.\Install-As-Service.ps1 -ServerPath "C:\YourPath"
+```
+
+**What this does:**
+
+- Downloads NSSM (service wrapper tool)
+- Creates a Windows service called "IcarusServer"
+- Sets it to start automatically with Windows
+- Configures auto-restart on crashes
+
+**After this, your server will:**
+
+- Start automatically when Windows boots
+- Run in the background (no window)
+- Be manageable with the restart scripts
 
 ## Quick Start
 
-### Basic Usage (No Warnings)
-
-```powershell
-.\Restart-IcarusServer.ps1 -NoWarnings
-```
-
-### With Warnings (15 min countdown)
+### Immediate Restart
 
 ```powershell
 .\Restart-IcarusServer.ps1
 ```
 
-## Problem: Admin Messages
-
-Icarus uses **RCON commands via in-game chat** for admin functions. The `AdminSay` command requires you to be logged into the game and type commands in chat (e.g., `/AdminSay Hello players`).
-
-This makes automated admin messages challenging. Your original AutoHotkey approach tried to solve this but has issues:
-
-- ❌ AutoHotkey not installed on Windows 11
-- ❌ Requires game window to be active/focused
-- ❌ Fragile and timing-dependent
-
-## Solutions for Admin Messages
-
-### Option 1: Use RCON Client (Recommended)
-
-Install a proper RCON client that can connect to the server:
-
-#### Using rcon-cli (Node.js)
+### Restart with Delay (gives time for manual warnings)
 
 ```powershell
-# Install Node.js first, then:
-npm install -g rcon-cli
-
-# Send message:
-rcon -H localhost -P 27015 -p YourAdminPassword "AdminSay Server restarting soon"
+# Wait 15 minutes before restarting
+.\Restart-IcarusServer.ps1 -WaitMinutes 15
 ```
 
-Then update the script to use it:
+## 💬 Player Notification Solutions
+
+**The Problem**: Icarus does NOT support network RCON. `AdminSay` only works from in-game chat when logged in.
+
+### Solution 1: Discord Notifications (RECOMMENDED) ⭐
+
+Post restart warnings to Discord where your players actually see them:
 
 ```powershell
-# In Send-AdminMessage function:
-rcon -H localhost -P $RconPort -p $AdminPassword "AdminSay $Message"
+.\Restart-With-Discord.ps1 -WebhookUrl "https://discord.com/api/webhooks/YOUR_WEBHOOK_HERE"
 ```
 
-#### Using mcrcon (C-based)
+**Setup Discord Webhook:**
 
-Download from: https://github.com/Tiiffi/mcrcon
+1. Go to your Discord server
+2. Server Settings > Integrations > Webhooks > New Webhook
+3. Choose a channel (e.g., #server-announcements)
+4. Copy the webhook URL
+5. Use it in the script above
+
+**Benefits:**
+
+- ✅ Players get notifications on their phones
+- ✅ No game client needed on server
+- ✅ Message history preserved
+- ✅ Can add @mentions if needed
+
+### Solution 2: AutoHotkey In-Game Messages
+
+If you MUST have in-game messages, this works but requires keeping a game client running on the server:
+
+**Setup:**
 
 ```powershell
-mcrcon.exe -H localhost -P 27015 -p YourAdminPassword "AdminSay Server restarting"
+# Run this once to install AutoHotkey
+.\Setup-AutoHotkey-Solution.ps1
+
+# Then use the original script
+.\Restart-Icarus.ps1
 ```
 
-### Option 2: IcarusServerManager Tool
+**Requirements:**
 
-Check if there's a community-made server manager tool that provides RCON functionality:
+- Icarus game client must be running on server
+- Must be logged in to your server as admin
+- Game can be minimized but must stay running
+- AutoHotkey installed (C:\Program Files\AutoHotkey\)
 
-- https://github.com/search?q=icarus+server+manager
-- Many game server managers provide RCON interfaces
+**How it works:**
 
-### Option 3: Manual Operation
+1. Script activates the Icarus window
+2. Opens chat (Enter key)
+3. Types `/AdminSay Your Message`
+4. Sends it (Enter key)
 
-If automated messages aren't critical:
+This is hacky but it DOES work for true in-game notifications.
+
+### Solution 3: Manual Warnings
+
+If neither automated solution works:
 
 ```powershell
-# Just restart without warnings
-.\Restart-IcarusServer.ps1 -NoWarnings
+# Start script with delay
+.\Restart-IcarusServer.ps1 -WaitMinutes 15
+
+# Then immediately:
+# 1. Join your server
+# 2. Type: /AdminLogin YourPassword
+# 3. Send warnings manually in chat
 ```
-
-Or manually send messages in-game before running the script:
-
-1. Join the server
-2. Type: `/AdminLogin YourPassword`
-3. Type: `/AdminSay Server restarting in 15 minutes`
-4. Run: `.\Restart-IcarusServer.ps1 -NoWarnings`
-
-### Option 4: Keep AutoHotkey (Install It)
-
-Install AutoHotkey on your Windows 11 box:
-
-1. Download from: https://www.autohotkey.com/
-2. Install to: `C:\Program Files\AutoHotkey\`
-3. Use your original `Restart-Icarus.ps1` script
-
-**Note**: This still requires the game window to be open and active.
 
 ## Configuration
 
-Edit the script variables at the top if needed:
+The script uses these defaults:
 
 ```powershell
 $ServiceName = "IcarusServer"  # Your Windows service name
-$RconPort = 27015              # Your RCON port (check ServerSettings.ini)
-$AdminPassword = "your_pass"   # Your admin password
+```
+
+If your service has a different name, edit the script or check available services:
+
+```powershell
+Get-Service | Where-Object {$_.Name -like "*Icarus*"}
 ```
 
 ## Scheduled Restarts
@@ -115,7 +172,7 @@ To schedule automatic restarts, use Windows Task Scheduler.
 ### Option A: Restart Every 5 Hours (Recommended)
 
 ```powershell
-# Run as Administrator
+# Run as Administrator (update path if your scripts are elsewhere)
 $action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
     -Argument "-File C:\Users\newdark\icarus\Restart-IcarusServer.ps1"
 
@@ -130,7 +187,7 @@ Register-ScheduledTask -Action $action -Trigger $trigger `
 ### Option B: Restart Daily at Specific Time
 
 ```powershell
-# Run at 3 AM daily with warnings
+# Run at 3 AM daily (update path if your scripts are elsewhere)
 $action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
     -Argument "-File C:\Users\newdark\icarus\Restart-IcarusServer.ps1"
 
@@ -173,12 +230,21 @@ Enable-ScheduledTask -TaskName "Icarus Server Restart Every 5 Hours"
 
 ### Service not found
 
-```powershell
-# List all services with "Icarus" in the name
-Get-Service | Where-Object {$_.Name -like "*Icarus*"}
+The Icarus server may not be running as a Windows Service. Check what's actually running:
 
-# Update $ServiceName in the script to match
+```powershell
+# Check for IcarusServer process
+Get-Process | Where-Object {$_.Name -like "*Icarus*"}
+
+# Check all services (not just Icarus)
+Get-Service | Where-Object {$_.Status -eq 'Running'} | Select-Object Name, DisplayName
+
+# If it's a process, not a service, you'll need to use process management instead
 ```
+
+**If Icarus is running as a PROCESS (not a service):**
+
+You'll need to modify the restart scripts to use `Stop-Process` and `Start-Process` instead of service commands. The scripts currently assume a Windows Service exists.
 
 ### Permission denied
 
